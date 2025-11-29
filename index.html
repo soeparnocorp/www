@@ -2,106 +2,93 @@
 <html lang="id">
 <head>
 <meta charset="utf-8">
-<title>2345 – Mars Orbit</title>
+<title>Electric Touch Effect</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/controls/OrbitControls.js"></script>
 <style>
-  body{margin:0;overflow:hidden;background:#000;}
-  #hud{position:absolute;top:20px;left:20px;color:#0ff;font-family:monospace;opacity:0.7;pointer-events:none;}
-  #year{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);font-size:5vw;color:#0ff;letter-spacing:0.5ch;opacity:0.5;}
-  @media(min-width:768px){#year{font-size:2.5vw;}}
+  body,html{margin:0;height:100%;overflow:hidden;background:#000;cursor:none;}
+  canvas{display:block;}
 </style>
 </head>
 <body>
 
-<div id="hud">
-  MARS ORBIT TRANSMISSION<br>
-  <span style="font-size:0.8em;">Distance: ~142 million km</span>
-</div>
-<div id="year">2345</div>
+<canvas id="c"></canvas>
 
 <script>
-// Scene setup
-const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
-const renderer = new THREE.WebGLRenderer({antialias:true});
-renderer.setSize(innerWidth, innerHeight);
-renderer.setPixelRatio(devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let w = canvas.width = innerWidth;
+let h = canvas.height = innerHeight;
 
-// Bumi (NASA Blue Marble 4K langsung dari server NASA)
-const earthTexture = 'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73751/world.topo.bathy.200407.3x5400x2700.jpg';
-const earth = new THREE.Mesh(
-  new THREE.SphereGeometry(3, 64, 64),
-  new THREE.MeshPhongMaterial({map: new THREE.TextureLoader().load(earthTexture)})
-);
-scene.add(earth);
+let bolts = [];
 
-// Bulan kecil
-const moon = new THREE.Mesh(
-  new THREE.SphereGeometry(0.08, 32, 32),
-  new THREE.MeshBasicMaterial({color:0xdddddd})
-);
-moon.position.set(5, 0, 0);
-scene.add(moon);
+class Lightning {
+  constructor(sx, sy, tx, ty) {
+    this.sx = sx; this.sy = sy;
+    this.tx = tx; this.ty = ty;
+    this.points = [];
+    this.branches = [];
+    this.alpha = 1;
+    this.generate();
+  }
+  generate() {
+    let x = this.sx, y = this.sy;
+    this.points.push({x,y});
+    while (Math.hypot(x-this.tx, y-this.ty) > 8) {
+      const angle = Math.atan2(this.ty-y, this.tx-x) + (Math.random()-0.5)*1.2;
+      const dist = 8 + Math.random()*12;
+      x += Math.cos(angle)*dist;
+      y += Math.sin(angle)*dist;
+      this.points.push({x,y});
+    }
+    this.points.push({x:this.tx, y:this.ty});
+    // cabang kecil
+    for(let i=2; i<this.points.length-2; i+=3){
+      if(Math.random()<0.4){
+        const branch = new Lightning(this.points[i].x, this.points[i].y,
+          this.points[i].x + (Math.random()-0.5)*120,
+          this.points[i].y + (Math.random()-0.5)*120);
+        branch.alpha = 0.6;
+        this.branches.push(branch);
+      }
+    }
+  }
+  draw() {
+    ctx.strokeStyle = `hsla(200,100%,90%,${this.alpha})`;
+    ctx.lineWidth = 2 + Math.random()*2;
+    ctx.beginPath();
+    ctx.moveTo(this.points[0].x, this.points[0].y);
+    for(let p of this.points) ctx.lineTo(p.x, p.y);
+    ctx.stroke();
 
-// Bintang
-const starsGeometry = new THREE.BufferGeometry();
-const starsMaterial = new THREE.PointsMaterial({color:0xffffff, size:0.7});
-const starsVertices = [];
-for(let i=0;i<15000;i++){
-  const x = THREE.MathUtils.randFloatSpread(2000);
-  const y = THREE.MathUtils.randFloatSpread(2000);
-  const z = THREE.MathUtils.randFloatSpread(2000);
-  starsVertices.push(x,y,z);
+    this.branches.forEach(b=>b.draw());
+    this.alpha -= 0.03;
+  }
 }
-starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices,3));
-scene.add(new THREE.Points(starsGeometry, starsMaterial));
 
-// Cahaya
-scene.add(new THREE.AmbientLight(0x404040));
-const sun = new THREE.PointLight(0xffffff, 2);
-sun.position.set(50, 20, 50);
-scene.add(sun);
+function animate() {
+  ctx.fillStyle = 'rgba(0,0,0,0.1)';
+  ctx.fillRect(0,0,w,h);
 
-camera.position.z = 18;
+  bolts = bolts.filter(b=>b.alpha>0.05);
+  bolts.forEach(b=>b.draw());
 
-// Gerakan melayang + wobble
-let time = 0;
-function animate(){
-  time += 0.003;
-  
-  // kamera melayang pelan
-  camera.position.x = Math.sin(time*0.3)*2;
-  camera.position.y = Math.cos(time*0.25)*1.5;
-  camera.position.z = 18 + Math.sin(time*0.8)*0.8;
-  
-  // Bumi rotasi pelan
-  earth.rotation.y += 0.001;
-  
-  // wobble realistis
-  camera.lookAt(earth.position);
-  camera.rotation.z = Math.sin(time*1.2)*0.02;
-  
-  renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
 animate();
 
-// Resize
-window.addEventListener('resize',()=>{
-  camera.aspect = innerWidth/innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
-});
+function createBolt(e){
+  const rect = canvas.getBoundingClientRect();
+  const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
+  const y = (e.touches?e.touches[0].clientY:e.clientY) - rect.top;
+  const targetX = x + (Math.random()-0.5)*400;
+  const targetY = y + (Math.random()-0.5)*400;
 
-// Suara ambience (direct link, auto-play setelah interaksi)
-const ambience = new Audio('https://cdn.freesound.org/previews/620/620173_5674468-lq.mp3');
-ambience.loop = true;
-ambience.volume = 0.3;
-document.body.addEventListener('click',()=>{ambience.play();},{once:true});
+  bolts.push(new Lightning(x,y, targetX, targetY));
+  bolts.push(new Lightning(x,y, x + (Math.random()-0.5)*300, y + (Math.random()-0.5)*300));
+}
+
+canvas.addEventListener('click', createBolt);
+canvas.addEventListener('touchstart', createBolt);
 </script>
-
 </body>
 </html>
