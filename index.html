@@ -1,94 +1,31 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-<meta charset="utf-8">
-<title>Electric Touch Effect</title>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  body,html{margin:0;height:100%;overflow:hidden;background:#000;cursor:none;}
-  canvas{display:block;}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Anna Laura AI</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<canvas id="c"></canvas>
+  <main>
+    <h1># Anna Laura AI</h1>
+    <h2>ANNA LAURA AI</h2>
+    <p>Intelligent AI that understands your needs<br>In helping your creativity and productivity.</p>
+    
+    <a href="#" class="btn">DEMO</a>
+    
+    <div class="versions">
+      <div>Personal Version</div>
+      <div>Creator Version</div>
+      <div>Enterprise Version</div>
+    </div>
+    
+    <footer>© 2025 SOEPARNO ENTERPRISE Corp.</footer>
+  </main>
 
-<script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-let w = canvas.width = innerWidth;
-let h = canvas.height = innerHeight;
+  <canvas id="canvas"></canvas>
 
-let bolts = [];
-
-class Lightning {
-  constructor(sx, sy, tx, ty) {
-    this.sx = sx; this.sy = sy;
-    this.tx = tx; this.ty = ty;
-    this.points = [];
-    this.branches = [];
-    this.alpha = 1;
-    this.generate();
-  }
-  generate() {
-    let x = this.sx, y = this.sy;
-    this.points.push({x,y});
-    while (Math.hypot(x-this.tx, y-this.ty) > 8) {
-      const angle = Math.atan2(this.ty-y, this.tx-x) + (Math.random()-0.5)*1.2;
-      const dist = 8 + Math.random()*12;
-      x += Math.cos(angle)*dist;
-      y += Math.sin(angle)*dist;
-      this.points.push({x,y});
-    }
-    this.points.push({x:this.tx, y:this.ty});
-    // cabang kecil
-    for(let i=2; i<this.points.length-2; i+=3){
-      if(Math.random()<0.4){
-        const branch = new Lightning(this.points[i].x, this.points[i].y,
-          this.points[i].x + (Math.random()-0.5)*120,
-          this.points[i].y + (Math.random()-0.5)*120);
-        branch.alpha = 0.6;
-        this.branches.push(branch);
-      }
-    }
-  }
-  draw() {
-    ctx.strokeStyle = `hsla(200,100%,90%,${this.alpha})`;
-    ctx.lineWidth = 2 + Math.random()*2;
-    ctx.beginPath();
-    ctx.moveTo(this.points[0].x, this.points[0].y);
-    for(let p of this.points) ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-
-    this.branches.forEach(b=>b.draw());
-    this.alpha -= 0.03;
-  }
-}
-
-function animate() {
-  ctx.fillStyle = 'rgba(0,0,0,0.1)';
-  ctx.fillRect(0,0,w,h);
-
-  bolts = bolts.filter(b=>b.alpha>0.05);
-  bolts.forEach(b=>b.draw());
-
-  requestAnimationFrame(animate);
-}
-animate();
-
-function createBolt(e){
-  const rect = canvas.getBoundingClientRect();
-  const x = (e.touches?e.touches[0].clientX:e.clientX) - rect.left;
-  const y = (e.touches?e.touches[0].clientY:e.clientY) - rect.top;
-  const targetX = x + (Math.random()-0.5)*400;
-  const targetY = y + (Math.random()-0.5)*400;
-
-  bolts.push(new Lightning(x,y, targetX, targetY));
-  bolts.push(new Lightning(x,y, x + (Math.random()-0.5)*300, y + (Math.random()-0.5)*300));
-}
-
-canvas.addEventListener('click', createBolt);
-canvas.addEventListener('touchstart', createBolt);
-</script>
+  <script src="main.js"></script>
 </body>
 </html>
