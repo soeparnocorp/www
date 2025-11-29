@@ -3,87 +3,87 @@ const ctx = canvas.getContext('2d');
 canvas.width = innerWidth;
 canvas.height = innerHeight;
 
-let flows = [];
-let particles = [];
+let ripples = [];
 
-class Particle {
-  constructor() { this.reset(); }
-  reset() {
-    this.x = Math.random()*canvas.width;
-    this.y = Math.random()*canvas.height;
-    this.size = Math.random()*2;
-    this.speed = 0.5 + Math.random();
-    this.angle = Math.random()*Math.PI*2;
+class ElectricRipple {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.radius = 0;
+    this.maxRadius = Math.max(innerWidth, innerHeight) * 1.2;
+    this.speed = 2.5;
+    this.alpha = 1;
+    this.thickness = 4;
+    this.sparks = [];
+    for(let i = 0; i < 30; i++) {
+      this.sparks.push({
+        angle: Math.random() * Math.PI * 2,
+        dist: Math.random() * 80,
+        speed: 1 + Math.random() * 3,
+        life: 1
+      });
+    }
   }
+
   update() {
-    this.x += Math.cos(this.angle)*this.speed;
-    this.y += Math.sin(this.angle)*this.speed;
-    if (this.x<0 || this.x>canvas.width || this.y<0 || this.y>canvas.height) this.reset();
+    this.radius += this.speed;
+    this.alpha = 1 - (this.radius / this.maxRadius);
+    this.thickness = 4 * this.alpha;
+    
+    this.sparks.forEach(s => {
+      s.dist += s.speed;
+      s.life -= 0.02;
+    });
   }
+
   draw() {
-    ctx.fillStyle = 'rgba(0,255,255,0.5)';
+    if (this.alpha <= 0) return;
+
+    // Gelombang utama
+    const gradient = ctx.createRadialGradient(this.x, this.y, this.radius - 50, this.x, this.y, this.radius);
+    gradient.addColorStop(0, `hsla(200, 100%, 70%, ${this.alpha})`);
+    gradient.addColorStop(0.7, `hsla(270, 100%, 60%, ${this.alpha * 0.6})`);
+    gradient.addColorStop(1, 'transparent');
+
+    ctx.strokeStyle = gradient;
+    ctx.lineWidth = this.thickness;
     ctx.beginPath();
-    ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
-    ctx.fill();
-  }
-}
-
-for(let i=0;i<80;i++) particles.push(new Particle());
-
-class Flow {
-  constructor(x,y,targetElement) {
-    this.x = x; this.y = y;
-    this.target = targetElement.getBoundingClientRect();
-    this.points = [];
-    this.progress = 0;
-    this.speed = 0.008;
-    this.glow = 1;
-  }
-  update() {
-    this.progress += this.speed;
-    if (this.progress > 1) this.glow -= 0.02;
-  }
-  draw() {
-    if (this.glow <= 0) return;
-    const centerX = this.target.left + this.target.width/2 + window.scrollX;
-    const centerY = this.target.top + this.target.height/2 + window.scrollY;
-    const dx = centerX - this.x;
-    const dy = centerY - this.y;
-    const eased = 1 - Math.pow(1 - this.progress, 3);
-    const currentX = this.x + dx * eased;
-    const currentY = this.y + dy * eased;
-
-    ctx.strokeStyle = `hsla(180,100%,50%,${this.glow})`;
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(this.x, this.y);
-    ctx.lineTo(currentX, currentY);
+    ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.stroke();
 
-    // glow di ujung
-    ctx.fillStyle = `hsla(180,100%,70%,${this.glow})`;
-    ctx.beginPath();
-    ctx.arc(currentX, currentY, 6*this.glow, 0, Math.PI*2);
-    ctx.fill();
+    // Percikan kecil
+    this.sparks.forEach(s => {
+      if (s.life <= 0) return;
+      const sx = this.x + Math.cos(s.angle) * s.dist;
+      const sy = this.y + Math.sin(s.angle) * s.dist;
+      ctx.fillStyle = `hsla(190, 100%, 80%, ${s.life})`;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 }
 
 function animate() {
-  ctx.fillStyle = 'rgba(0,0,0,0.05)';
-  ctx.fillRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.08)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  particles.forEach(p => { p.update(); p.draw(); });
-  flows = flows.filter(f => f.glow > 0);
-  flows.forEach(f => { f.update(); f.draw(); });
+  ripples = ripples.filter(r => r.alpha > 0.02);
+  ripples.forEach(r => {
+    r.update();
+    r.draw();
+  });
 
   requestAnimationFrame(animate);
 }
 animate();
 
-document.body.addEventListener('click', e => {
-  document.querySelectorAll('h1,h2,p,.btn,.versions div,footer').forEach(el => {
-    flows.push(new Flow(e.clientX, e.clientY, el));
-  });
+document.body.addEventListener('pointerdown', e => {
+  ripples.push(new ElectricRipple(e.clientX, e.clientY));
+  
+  // Efek getar halus
+  document.body.style.transform = 'translate(4px, 4px)';
+  setTimeout(() => document.body.style.transform = '', 100);
 });
 
 window.addEventListener('resize', () => {
