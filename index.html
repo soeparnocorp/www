@@ -4,122 +4,103 @@
 <meta charset="utf-8">
 <title>2345 – Mars Orbit</title>
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.168.0/examples/js/controls/OrbitControls.js"></script>
 <style>
-  body,html{margin:0;height:100%;overflow:hidden;background:#000;color:#0ff;font-family:monospace;}
-  canvas{display:block;position:absolute;top:0;left:0;width:100%;height:100%;}
-  #hud{position:absolute;top:20px;left:20px;opacity:0.6;pointer-events:none;}
-  #year{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);font-size:2.5vw;letter-spacing:0.5ch;opacity:0.4;}
-  @media(max-width:768px){#year{font-size:5vw;}}
+  body{margin:0;overflow:hidden;background:#000;}
+  #hud{position:absolute;top:20px;left:20px;color:#0ff;font-family:monospace;opacity:0.7;pointer-events:none;}
+  #year{position:absolute;bottom:30px;left:50%;transform:translateX(-50%);font-size:5vw;color:#0ff;letter-spacing:0.5ch;opacity:0.5;}
+  @media(min-width:768px){#year{font-size:2.5vw;}}
 </style>
 </head>
 <body>
 
-<canvas id="c"></canvas>
-
 <div id="hud">
-  <div>MARS ORBIT TRANSMISSION</div>
-  <div style="font-size:0.8em;margin-top:8px;">Distance: ~142 million km</div>
+  MARS ORBIT TRANSMISSION<br>
+  <span style="font-size:0.8em;">Distance: ~142 million km</span>
 </div>
-
 <div id="year">2345</div>
 
 <script>
-// —— Canvas setup ——
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-let w = canvas.width = window.innerWidth;
-let h = canvas.height = window.innerHeight;
+// Scene setup
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth/innerHeight, 0.1, 1000);
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+document.body.appendChild(renderer.domElement);
 
-// —— Bumi (dibuat dengan gradient + awan + city lights) ——
-function drawEarth(x, y, size) {
-  const gradient = ctx.createRadialGradient(x-size*0.1, y-size*0.1, 0, x, y, size);
-  gradient.addColorStop(0, '#a0d8ff');
-  gradient.addColorStop(0.6, '#0066ff');
-  gradient.addColorStop(1, '#003366');
-  ctx.fillStyle = gradient;
-  ctx.beginPath(); ctx.arc(x, y, size, 0, Math.PI*2); ctx.fill();
+// Bumi (NASA Blue Marble 4K langsung dari server NASA)
+const earthTexture = 'https://eoimages.gsfc.nasa.gov/images/imagerecords/73000/73751/world.topo.bathy.200407.3x5400x2700.jpg';
+const earth = new THREE.Mesh(
+  new THREE.SphereGeometry(3, 64, 64),
+  new THREE.MeshPhongMaterial({map: new THREE.TextureLoader().load(earthTexture)})
+);
+scene.add(earth);
 
-  // awan putih
-  ctx.globalAlpha = 0.4;
-  ctx.fillStyle = '#fff';
-  for(let i=0;i<12;i++){
-    const ax = x + (Math.random()-0.5)*size*1.2;
-    const ay = y + (Math.random()-0.5)*size*0.8;
-    ctx.beginPath(); ctx.arc(ax, ay, size*0.15*Math.random(), 0, Math.PI*2); ctx.fill();
-  }
-  ctx.globalAlpha = 1;
+// Bulan kecil
+const moon = new THREE.Mesh(
+  new THREE.SphereGeometry(0.08, 32, 32),
+  new THREE.MeshBasicMaterial({color:0xdddddd})
+);
+moon.position.set(5, 0, 0);
+scene.add(moon);
 
-  // city lights (night side)
-  ctx.fillStyle = '#ffaa00';
-  ctx.globalAlpha = 0.6;
-  for(let i=0;i<40;i++){
-    const angle = Math.random()*Math.PI*2;
-    const dist = size*0.7 + Math.random()*size*0.3;
-    if(angle > Math.PI*0.5 && angle < Math.PI*1.5){
-      ctx.fillRect(x + Math.cos(angle)*dist -1, y + Math.sin(angle)*dist -1, 2, 2);
-    }
-  }
-  ctx.globalAlpha = 1;
+// Bintang
+const starsGeometry = new THREE.BufferGeometry();
+const starsMaterial = new THREE.PointsMaterial({color:0xffffff, size:0.7});
+const starsVertices = [];
+for(let i=0;i<15000;i++){
+  const x = THREE.MathUtils.randFloatSpread(2000);
+  const y = THREE.MathUtils.randFloatSpread(2000);
+  const z = THREE.MathUtils.randFloatSpread(2000);
+  starsVertices.push(x,y,z);
 }
+starsGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starsVertices,3));
+scene.add(new THREE.Points(starsGeometry, starsMaterial));
 
-// —— Bulan (titik kecil) ——
-function drawMoon(ex, ey, size) {
-  const mx = ex + size*1.8;
-  const my = ey - size*0.4;
-  ctx.fillStyle = '#ddd';
-  ctx.beginPath(); ctx.arc(mx, my, size*0.08, 0, Math.PI*2); ctx.fill();
-}
+// Cahaya
+scene.add(new THREE.AmbientLight(0x404040));
+const sun = new THREE.PointLight(0xffffff, 2);
+sun.position.set(50, 20, 50);
+scene.add(sun);
 
-// —— Bintang ribuan ——
-const stars = [];
-for(let i=0;i<3500;i++){
-  stars.push({
-    x: Math.random()*w,
-    y: Math.random()*h,
-    size: Math.random()*1.8,
-    blink: Math.random()
-  });
-}
+camera.position.z = 18;
 
-// —— Animasi melayang ——
+// Gerakan melayang + wobble
 let time = 0;
 function animate(){
   time += 0.003;
-
-  // background hitam + fade trail
-  ctx.fillStyle = 'rgba(0,0,0,0.06)';
-  ctx.fillRect(0,0,w,h);
-
-  // bintang
-  stars.forEach(s=>{
-    ctx.fillStyle = Math.sin(time*10 + s.blink*10)>0 ? '#fff' : '#88f';
-    ctx.fillRect(s.x, s.y, s.size, s.size);
-  });
-
-  // posisi Bumi yang melayang pelan + rotasi + wobble
-  const earthSize = w*0.09; // lebih kecil karena lebih jauh
-  const ex = w/2 + Math.sin(time*0.3)*w*0.12;
-  const ey = h/2 + Math.cos(time*0.25)*h*0.08 + Math.sin(time*2)*8; // wobble
-  drawEarth(ex, ey, earthSize);
-  drawMoon(ex, ey, earthSize);
-
+  
+  // kamera melayang pelan
+  camera.position.x = Math.sin(time*0.3)*2;
+  camera.position.y = Math.cos(time*0.25)*1.5;
+  camera.position.z = 18 + Math.sin(time*0.8)*0.8;
+  
+  // Bumi rotasi pelan
+  earth.rotation.y += 0.001;
+  
+  // wobble realistis
+  camera.lookAt(earth.position);
+  camera.rotation.z = Math.sin(time*1.2)*0.02;
+  
+  renderer.render(scene, camera);
   requestAnimationFrame(animate);
 }
-
-// —— Resize ——
-window.addEventListener('resize',()=>{
-  w = canvas.width = innerWidth;
-  h = canvas.height = innerHeight;
-});
-
 animate();
 
-// —— Suara ambience (radio static + deep hum) ——
-const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjV
-... [data suara 20 detik super kecil di-embed langsung] ...');
-audio.loop = true;
-audio.volume = 0.25;
-document.body.addEventListener('click',()=>{audio.play();}, {once:true});
+// Resize
+window.addEventListener('resize',()=>{
+  camera.aspect = innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+
+// Suara ambience (direct link, auto-play setelah interaksi)
+const ambience = new Audio('https://cdn.freesound.org/previews/620/620173_5674468-lq.mp3');
+ambience.loop = true;
+ambience.volume = 0.3;
+document.body.addEventListener('click',()=>{ambience.play();},{once:true});
 </script>
 
 </body>
