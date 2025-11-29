@@ -1,45 +1,59 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8">
+  <title>2345</title>
   <style>
-    body, html { margin:0; height:100%; overflow:hidden; background:#000; }
-    canvas { display:block; }
+    body,html{margin:0;height:100%;overflow:hidden;background:#000;font-family:monospace;color:#0ff;}
+    canvas{display:block;}
+    #year{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:8vw;letter-spacing:0.5ch;opacity:0.7;text-shadow:0 0 20px #0ff;}
   </style>
 </head>
 <body>
 <canvas id="c"></canvas>
-<script>
-const c = document.getElementById('c');
-const ctx = c.getContext('2d');
-c.width = window.innerWidth;
-c.height = window.innerHeight;
+<div id="year">2345</div>
 
-const chars = "✦✧☉☊☋⚴♃♄⛢☄⬢⬡⬣⬤⬨⬩⬪⬫⬬⬭⬮⬯★☆⚝⚞⚟⚠︎⚢⚣⚤⚥⚦⚧⚨⚩";
-const fontSize = 16;
-const columns = c.width / fontSize;
+<script>
+// Matrix rain super slow + nebula style
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+const symbols = "01✦☄⬡⬢⬣⬤⬨⬩⬪⬫⬬⬭⬮⬯⚶⚙⚴⚵⚶⚷⚸⚝⋆✦✧";
+const fontSize = 18;
+const columns = canvas.width / fontSize;
 const drops = Array(Math.floor(columns)).fill(1);
 
 function draw() {
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-  ctx.fillRect(0, 0, c.width, c.height);
-  ctx.fillStyle = '#0f8';
-  ctx.font = fontSize + 'px monospace';
-  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
   for (let i = 0; i < drops.length; i++) {
-    const text = chars[Math.floor(Math.random() * chars.length)];
-    ctx.fillText(text, i * fontSize, drops[i] * fontSize);
-    
-    if (drops[i] * fontSize > c.height && Math.random() > 0.975)
-      drops[i] = 0;
-    drops[i]++;
+    const text = symbols[Math.floor(Math.random() * symbols.length)];
+    const x = i * fontSize;
+    const y = drops[i] * fontSize;
+
+    // Gradient neon biru-ungu
+    const gradient = ctx.createLinearGradient(0, y - fontSize, 0, y + fontSize);
+    gradient.addColorStop(0, '#0ff');
+    gradient.addColorStop(0.5, '#a0f');
+    gradient.addColorStop(1, '#f0f');
+    ctx.fillStyle = gradient;
+
+    ctx.font = fontSize + 'px monospace';
+    ctx.fillText(text, x, y);
+
+    if (y > canvas.height && Math.random() > 0.99) drops[i] = 0;
+    drops[i] += 0.3; // super slow
   }
 }
-setInterval(draw, 50);
+setInterval(draw, 80);
 
-window.addEventListener('resize', () => {
-  c.width = window.innerWidth;
-  c.height = window.innerHeight;
-});
+window.onresize = () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+};
 </script>
 </body>
 </html>
